@@ -1,0 +1,77 @@
+jQuery(document).ready(function ($) {
+    var currentDate = new Date();
+    var lastPopupDateString = getCookie('depegraph_wp_popup_last_date');
+    var lastPopupDate = lastPopupDateString ? new Date(lastPopupDateString) : null;
+    var popupInterval = 365 * 24 * 60 * 60 * 1000; // 1 year
+    var cancelInterval = 30 * 24 * 60 * 60 * 1000; // 30 days
+
+    var cancelledCookie = getCookie('depegraph_wp_popup_cancelled');
+    if (!cancelledCookie && (!lastPopupDate || isNaN(lastPopupDate.getTime()) || (currentDate - lastPopupDate) >= popupInterval)) {
+        // Display the popup after page load
+        $('#depegraph-wp-popup-overlay').fadeIn();
+        $('#depegraph-wp-popup').fadeIn();
+    }
+
+    // Helper function to get cookie value by name
+    function getCookie(name) {
+        var cookieValue = document.cookie.match('(^|;)\\s*' + name + '\\s*=\\s*([^;]+)');
+        return cookieValue ? cookieValue.pop() : null;
+    }
+
+    // Close the popup when clicking outside of it
+    $('#depegraph-wp-popup-overlay').click(function () {
+        $('#depegraph-wp-popup-overlay').fadeOut();
+        $('#depegraph-wp-popup').fadeOut();
+    });
+
+    // Prevent closing the popup when clicking inside the popup
+    $('#depegraph-wp-popup-content').click(function (event) {
+        event.stopPropagation();
+    });
+
+    // Handle form submission
+    $('#depegraph-wp-popup-form').submit(function (event) {
+        event.preventDefault();
+        var name = $('#depegraph-wp-popup-name').val();
+        var email = $('#depegraph-wp-popup-email').val();
+        // Subscribe user to Mailchimp list
+        $.ajax({
+            url: popup_ajax.ajax_url,
+            type: 'POST',
+            data: {
+                action: 'depegraph_wp_subscribe',
+                name: name,
+                email: email
+            },
+            success: function (response) {
+                console.log(response);
+                if (response === 'success') {
+                    $('#depegraph-wp-popup-content').html('<h2>Successfully Subscribed!</h2><p>You are now subscribed to our newsletter.</p>');
+                } else {
+                    $('#depegraph-wp-popup-content').html('<h2>Subscription Failed</h2><p>There was an error subscribing. Please try again later.</p>');
+                }
+            },
+            error: function (xhr, status, error) {
+                console.error(xhr.responseText);
+                $('#depegraph-wp-popup-content').html('<h2>Subscription Failed</h2><p>There was an error subscribing. Please try again later.</p>');
+            }
+        });
+        // Hide the popup after 10 seconds
+        setTimeout(function () {
+            $('#depegraph-wp-popup-overlay').fadeOut();
+            $('#depegraph-wp-popup').fadeOut();
+        }, 7000);
+        // Set cookie to record last popup display date
+        document.cookie = "depegraph_wp_popup_last_date=" + currentDate.toUTCString() + "; path=/";
+    });
+
+    // Handle cancel button click
+    $('#depegraph-wp-popup-cancel').click(function () {
+        // Hide the popup and overlay
+        $('#depegraph-wp-popup-overlay').fadeOut();
+        $('#depegraph-wp-popup').fadeOut();
+        // Set a cookie to prevent the popup from appearing for 30 days
+        var expirationDate = new Date(currentDate.getTime() + cancelInterval);
+        document.cookie = "depegraph_wp_popup_cancelled=true; expires=" + expirationDate.toUTCString() + "; path=/";
+    });
+});
